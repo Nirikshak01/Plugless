@@ -35,7 +35,7 @@ fun TouchpadScreen(
     var sensitivity by remember { mutableFloatStateOf(settings.mouseSensitivity) }
     var lastX by remember { mutableFloatStateOf(0f) }
     var lastY by remember { mutableFloatStateOf(0f) }
-    var isDragging by remember { mutableBooleanOf(false) }
+    var isDragging by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier

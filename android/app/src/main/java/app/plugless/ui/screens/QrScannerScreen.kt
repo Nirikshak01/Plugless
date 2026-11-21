@@ -46,7 +46,7 @@ fun QrScannerScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    var hasScanned by remember { mutableBooleanOf(false) }
+    var hasScanned by remember { mutableStateOf(false) }
 
     // Laser sweep animation
     val infiniteTransition = rememberInfiniteTransition(label = "laserTransition")

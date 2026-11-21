@@ -30,10 +30,10 @@ fun KeyboardScreen(
     onBack: () -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
-    var ctrlActive by remember { mutableBooleanOf(false) }
-    var altActive by remember { mutableBooleanOf(false) }
-    var shiftActive by remember { mutableBooleanOf(false) }
-    var superActive by remember { mutableBooleanOf(false) }
+    var ctrlActive by remember { mutableStateOf(false) }
+    var altActive by remember { mutableStateOf(false) }
+    var shiftActive by remember { mutableStateOf(false) }
+    var superActive by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
