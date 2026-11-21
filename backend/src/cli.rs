@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(name = "plugless")]
-#[command(author = "Nirikshak <thakorjasmin503@gmail.com>")]
+#[command(author = "Plugless Contributors")]
 #[command(version = "1.0.0")]
 #[command(about = "Turn your phone into zero-wire PC peripherals (mouse, keyboard, microphone, speaker)", long_about = None)]
 pub struct Cli {

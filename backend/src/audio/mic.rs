@@ -61,17 +61,27 @@ impl VirtualMicrophone {
                         "  ✓ Created remap source 'Plugless_Virtual_Mic' (module id: {})",
                         id
                     );
+                    let _ = Command::new("pactl")
+                        .args(["set-default-source", "Plugless_Virtual_Mic"])
+                        .output();
+                    info!("  ✓ Set 'Plugless_Virtual_Mic' as active system default source");
                     Some(id)
                 }
                 Ok(output) => {
                     warn!(
-                        "Failed to remap source: {}",
+                        "Failed to remap source: {}. Falling back to monitor sink.",
                         String::from_utf8_lossy(&output.stderr)
                     );
+                    let _ = Command::new("pactl")
+                        .args(["set-default-source", "Plugless_Mic.monitor"])
+                        .output();
                     None
                 }
                 Err(e) => {
                     warn!("Failed to execute pactl remap: {}", e);
+                    let _ = Command::new("pactl")
+                        .args(["set-default-source", "Plugless_Mic.monitor"])
+                        .output();
                     None
                 }
             }

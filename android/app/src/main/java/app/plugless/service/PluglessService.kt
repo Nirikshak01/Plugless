@@ -15,6 +15,7 @@ import app.plugless.model.ToolType
 import app.plugless.network.AudioStreamManager
 import app.plugless.network.PluglessClient
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class PluglessService : Service() {
     private val binder = LocalBinder()
@@ -25,20 +26,13 @@ class PluglessService : Service() {
     var audioManager: AudioStreamManager? = null
         private set
 
-    var connectionState: ConnectionState = ConnectionState.DISCONNECTED
-        private set
-    var latencyMs: Long = 0L
-        private set
-    var mouseEnabled: Boolean = false
-        private set
-    var keyboardEnabled: Boolean = false
-        private set
-    var micEnabled: Boolean = false
-        private set
-    var speakerEnabled: Boolean = false
-        private set
-    var cameraEnabled: Boolean = false
-        private set
+    val connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+    val latencyMs = MutableStateFlow(0L)
+    val mouseEnabled = MutableStateFlow(false)
+    val keyboardEnabled = MutableStateFlow(false)
+    val micEnabled = MutableStateFlow(false)
+    val speakerEnabled = MutableStateFlow(false)
+    val cameraEnabled = MutableStateFlow(false)
 
     var onStateChanged: (() -> Unit)? = null
 
@@ -65,7 +59,7 @@ class PluglessService : Service() {
             token = token,
             onConnectionStateChanged = { state ->
                 scope.launch {
-                    connectionState = state
+                    connectionState.value = state
                     updateNotification()
                     onStateChanged?.invoke()
 
@@ -77,11 +71,11 @@ class PluglessService : Service() {
             },
             onStateSync = { m, k, mic, spk, cam ->
                 scope.launch {
-                    mouseEnabled = m
-                    keyboardEnabled = k
-                    micEnabled = mic
-                    speakerEnabled = spk
-                    cameraEnabled = cam
+                    mouseEnabled.value = m
+                    keyboardEnabled.value = k
+                    micEnabled.value = mic
+                    speakerEnabled.value = spk
+                    cameraEnabled.value = cam
 
                     // Handle audio stream toggles
                     if (mic) audioManager?.startMicrophone() else audioManager?.stopMicrophone()
@@ -93,7 +87,7 @@ class PluglessService : Service() {
             },
             onLatencyUpdated = { lat ->
                 scope.launch {
-                    latencyMs = lat
+                    latencyMs.value = lat
                     onStateChanged?.invoke()
                 }
             }
@@ -106,25 +100,25 @@ class PluglessService : Service() {
     fun setToolEnabled(tool: ToolType, enabled: Boolean) {
         when (tool) {
             ToolType.MOUSE -> {
-                mouseEnabled = enabled
+                mouseEnabled.value = enabled
                 client?.setToolState(ToolType.MOUSE, enabled)
             }
             ToolType.KEYBOARD -> {
-                keyboardEnabled = enabled
+                keyboardEnabled.value = enabled
                 client?.setToolState(ToolType.KEYBOARD, enabled)
             }
             ToolType.MIC -> {
-                micEnabled = enabled
+                micEnabled.value = enabled
                 client?.setToolState(ToolType.MIC, enabled)
                 if (enabled) audioManager?.startMicrophone() else audioManager?.stopMicrophone()
             }
             ToolType.SPEAKER -> {
-                speakerEnabled = enabled
+                speakerEnabled.value = enabled
                 client?.setToolState(ToolType.SPEAKER, enabled)
                 if (enabled) audioManager?.startSpeaker() else audioManager?.stopSpeaker()
             }
             ToolType.CAMERA -> {
-                cameraEnabled = enabled
+                cameraEnabled.value = enabled
                 client?.setToolState(ToolType.CAMERA, enabled)
             }
         }
@@ -134,11 +128,11 @@ class PluglessService : Service() {
 
     fun toggleTool(tool: ToolType) {
         when (tool) {
-            ToolType.MOUSE -> setToolEnabled(ToolType.MOUSE, !mouseEnabled)
-            ToolType.KEYBOARD -> setToolEnabled(ToolType.KEYBOARD, !keyboardEnabled)
-            ToolType.MIC -> setToolEnabled(ToolType.MIC, !micEnabled)
-            ToolType.SPEAKER -> setToolEnabled(ToolType.SPEAKER, !speakerEnabled)
-            ToolType.CAMERA -> setToolEnabled(ToolType.CAMERA, !cameraEnabled)
+            ToolType.MOUSE -> setToolEnabled(ToolType.MOUSE, !mouseEnabled.value)
+            ToolType.KEYBOARD -> setToolEnabled(ToolType.KEYBOARD, !keyboardEnabled.value)
+            ToolType.MIC -> setToolEnabled(ToolType.MIC, !micEnabled.value)
+            ToolType.SPEAKER -> setToolEnabled(ToolType.SPEAKER, !speakerEnabled.value)
+            ToolType.CAMERA -> setToolEnabled(ToolType.CAMERA, !cameraEnabled.value)
         }
     }
 
@@ -147,12 +141,12 @@ class PluglessService : Service() {
         client = null
         audioManager?.release()
         audioManager = null
-        connectionState = ConnectionState.DISCONNECTED
-        mouseEnabled = false
-        keyboardEnabled = false
-        micEnabled = false
-        speakerEnabled = false
-        cameraEnabled = false
+        connectionState.value = ConnectionState.DISCONNECTED
+        mouseEnabled.value = false
+        keyboardEnabled.value = false
+        micEnabled.value = false
+        speakerEnabled.value = false
+        cameraEnabled.value = false
         onStateChanged?.invoke()
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
@@ -174,14 +168,14 @@ class PluglessService : Service() {
 
     private fun updateNotification() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val text = when (connectionState) {
+        val text = when (connectionState.value) {
             ConnectionState.CONNECTED -> {
                 val activeList = mutableListOf<String>()
-                if (mouseEnabled) activeList.add("Mouse")
-                if (keyboardEnabled) activeList.add("Keyboard")
-                if (micEnabled) activeList.add("Mic")
-                if (speakerEnabled) activeList.add("Speaker")
-                if (cameraEnabled) activeList.add("Camera")
+                if (mouseEnabled.value) activeList.add("Mouse")
+                if (keyboardEnabled.value) activeList.add("Keyboard")
+                if (micEnabled.value) activeList.add("Mic")
+                if (speakerEnabled.value) activeList.add("Speaker")
+                if (cameraEnabled.value) activeList.add("Camera")
 
                 if (activeList.isEmpty()) {
                     "Connected to PC (Idle)"

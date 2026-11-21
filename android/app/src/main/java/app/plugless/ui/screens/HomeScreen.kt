@@ -28,6 +28,7 @@ import app.plugless.R
 import app.plugless.model.ConnectionState
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun HomeScreen(
@@ -40,12 +41,12 @@ fun HomeScreen(
     onNavigateScanner: () -> Unit,
     onNavigateSettings: () -> Unit
 ) {
-    val connectionState = service?.connectionState ?: ConnectionState.DISCONNECTED
-    val mouseOn = service?.mouseEnabled ?: false
-    val kbOn = service?.keyboardEnabled ?: false
-    val micOn = service?.micEnabled ?: false
-    val spkOn = service?.speakerEnabled ?: false
-    val camOn = service?.cameraEnabled ?: false
+    val connectionState by (service?.connectionState ?: remember { MutableStateFlow(ConnectionState.DISCONNECTED) }).collectAsState()
+    val mouseOn by (service?.mouseEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
+    val kbOn by (service?.keyboardEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
+    val micOn by (service?.micEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
+    val spkOn by (service?.speakerEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
+    val camOn by (service?.cameraEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
 
     var showDisconnectDialog by remember { mutableStateOf(false) }
     var showRequestToolDialog by remember { mutableStateOf(false) }
@@ -102,13 +103,16 @@ fun HomeScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(180.dp),
-            shape = RoundedCornerShape(22.dp),
+                .height(225.dp)
+                .padding(horizontal = 4.dp),
+            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = CardGreyLight),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Image(

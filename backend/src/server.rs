@@ -380,6 +380,11 @@ impl PluglessServer {
                                 }
                                 ToolType::Keyboard => {
                                     st.keyboard_enabled = enabled;
+                                    if !enabled {
+                                        if let Some(ref mut kb) = st.keyboard {
+                                            let _ = kb.release_all_modifiers();
+                                        }
+                                    }
                                     info!("Keyboard tool toggled: {}", enabled);
                                 }
                                 ToolType::Mic => {
@@ -450,6 +455,12 @@ impl PluglessServer {
         }
 
         speaker_task.abort();
+        {
+            let mut st = state.lock().await;
+            if let Some(ref mut kb) = st.keyboard {
+                let _ = kb.release_all_modifiers();
+            }
+        }
         info!("Client connection finished: {}", peer_addr);
         Ok(())
     }

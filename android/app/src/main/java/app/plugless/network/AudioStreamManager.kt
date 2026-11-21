@@ -60,12 +60,21 @@ class AudioStreamManager(
 
             try {
                 audioRecord = AudioRecord(
-                    MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                    MediaRecorder.AudioSource.MIC,
                     SAMPLE_RATE,
                     AudioFormat.CHANNEL_IN_MONO,
                     AudioFormat.ENCODING_PCM_16BIT,
                     bufferSize
                 )
+                if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+                    audioRecord = AudioRecord(
+                        MediaRecorder.AudioSource.DEFAULT,
+                        SAMPLE_RATE,
+                        AudioFormat.CHANNEL_IN_MONO,
+                        AudioFormat.ENCODING_PCM_16BIT,
+                        bufferSize
+                    )
+                }
 
                 val audioSessionId = audioRecord!!.audioSessionId
 

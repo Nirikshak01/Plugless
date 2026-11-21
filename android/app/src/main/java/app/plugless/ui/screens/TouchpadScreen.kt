@@ -25,6 +25,7 @@ import app.plugless.model.AppSettings
 import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -33,7 +34,7 @@ fun TouchpadScreen(
     settings: AppSettings,
     onBack: () -> Unit
 ) {
-    val mouseActive = service?.mouseEnabled ?: false
+    val mouseActive by (service?.mouseEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
     var sensitivity by remember { mutableFloatStateOf(settings.mouseSensitivity) }
     var lastX by remember { mutableFloatStateOf(0f) }
     var lastY by remember { mutableFloatStateOf(0f) }

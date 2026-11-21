@@ -24,13 +24,14 @@ import app.plugless.R
 import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun MicrophoneScreen(
     service: PluglessService?,
     onBack: () -> Unit
 ) {
-    val micActive = service?.micEnabled ?: false
+    val micActive by (service?.micEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
     var noiseSuppression by remember { mutableStateOf(true) }
     var echoCancellation by remember { mutableStateOf(true) }
     var micGain by remember { mutableFloatStateOf(1.0f) }

@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
 
             // Auto-connect if configured and last host exists
             if (appSettings.autoConnect && appSettings.lastHostIp != null && appSettings.lastToken != null) {
-                if (pluglessService?.connectionState == ConnectionState.DISCONNECTED) {
+                if (pluglessService?.connectionState?.value == ConnectionState.DISCONNECTED) {
                     pluglessService?.connect(
                         hostIp = appSettings.lastHostIp!!,
                         wsPort = 8765,

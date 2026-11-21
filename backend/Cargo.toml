@@ -2,7 +2,7 @@
 name = "plugless"
 version = "1.0.0"
 edition = "2021"
-authors = ["Nirikshak <thakorjasmin503@gmail.com>"]
+authors = ["Plugless Contributors"]
 description = "Turn your phone into zero-wire PC peripherals (mouse, keyboard, microphone, speaker)"
 license = "MIT"
 readme = "../README.md"

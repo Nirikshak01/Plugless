@@ -86,6 +86,7 @@ pub const KEY_PAGEDOWN: u16 = 109;
 pub const KEY_INSERT: u16 = 110;
 pub const KEY_DELETE: u16 = 111;
 pub const KEY_LEFTMETA: u16 = 125; // Super / Windows key
+pub const KEY_RIGHTMETA: u16 = 126;
 
 pub struct VirtualKeyboard {
     device: UInputDevice,
@@ -95,6 +96,25 @@ impl VirtualKeyboard {
     pub fn new() -> io::Result<Self> {
         let device = UInputDevice::create_keyboard("Plugless Virtual Keyboard")?;
         Ok(Self { device })
+    }
+
+    pub fn release_all_modifiers(&mut self) -> io::Result<()> {
+        let modifiers = [
+            KEY_LEFTMETA,
+            KEY_RIGHTMETA,
+            KEY_LEFTCTRL,
+            KEY_RIGHTCTRL,
+            KEY_LEFTALT,
+            KEY_RIGHTALT,
+            KEY_LEFTSHIFT,
+            KEY_RIGHTSHIFT,
+        ];
+        for &key in &modifiers {
+            let _ = self.device.emit(EV_KEY, key, 0);
+        }
+        self.device.sync()?;
+        debug!("Released all keyboard modifiers");
+        Ok(())
     }
 
     pub fn send_key(&mut self, key_code: u16, state: KeyState) -> io::Result<()> {

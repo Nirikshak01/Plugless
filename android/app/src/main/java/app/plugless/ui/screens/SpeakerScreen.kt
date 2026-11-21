@@ -22,13 +22,14 @@ import app.plugless.R
 import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun SpeakerScreen(
     service: PluglessService?,
     onBack: () -> Unit
 ) {
-    val speakerActive = service?.speakerEnabled ?: false
+    val speakerActive by (service?.speakerEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
     var volume by remember { mutableFloatStateOf(1.0f) }
     var latencyMode by remember { mutableStateOf("Low Latency") } // "Low Latency", "Balanced", "Stable"
 

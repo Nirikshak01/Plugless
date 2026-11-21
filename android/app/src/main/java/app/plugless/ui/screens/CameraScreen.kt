@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 
@@ -48,7 +49,7 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val cameraActive = service?.cameraEnabled ?: false
+    val cameraActive by (service?.cameraEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
 
     var lensFacing by remember { mutableIntStateOf(CameraSelector.LENS_FACING_BACK) }
     var torchEnabled by remember { mutableStateOf(false) }

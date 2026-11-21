@@ -150,6 +150,36 @@ pub fn run_doctor() -> Vec<DoctorCheck> {
         });
     }
 
+    // 6. Virtual Camera device (/dev/video*) for native Zoom, Discord & Web Browsers
+    let v4l2_devices: Vec<String> = (0..16)
+        .filter_map(|i| {
+            let path = format!("/dev/video{}", i);
+            if std::path::Path::new(&path).exists() {
+                Some(path)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if !v4l2_devices.is_empty() {
+        checks.push(DoctorCheck {
+            name: "Virtual Camera (V4L2 Device)",
+            passed: true,
+            details: format!("Found video device(s): {}. Ready for native webcam.", v4l2_devices.join(", ")),
+            fix_recommendation: None,
+        });
+    } else {
+        checks.push(DoctorCheck {
+            name: "Virtual Camera (V4L2 Loopback for Web Browsers & Zoom)",
+            passed: false,
+            details: "No /dev/video* devices found. Native browser/Zoom direct webcam requires v4l2loopback (MJPEG streaming still works via OBS Studio).".to_string(),
+            fix_recommendation: Some(
+                "To enable direct virtual webcam in browsers & Zoom: sudo modprobe v4l2loopback video_nr=2 card_label=\"Plugless_Webcam\" exclusive_caps=1 (Arch: sudo pacman -S v4l2loopback-dkms; Ubuntu: sudo apt install v4l2loopback-dkms)".to_string(),
+            ),
+        });
+    }
+
     checks
 }
 

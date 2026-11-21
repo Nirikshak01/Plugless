@@ -38,8 +38,8 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 if curl -sL --fail "${RELEASE_BASE}/${BINARY_NAME}" -o "$TMP_DIR/plugless"; then
     echo "Downloaded release binary."
-elif [ -f "/home/jasmin/Projects/Plugless/backend/target/release/plugless" ]; then
-    cp "/home/jasmin/Projects/Plugless/backend/target/release/plugless" "$TMP_DIR/plugless"
+elif [ -f "./backend/target/release/plugless" ]; then
+    cp "./backend/target/release/plugless" "$TMP_DIR/plugless"
     echo "Installed from local build."
 else
     echo "Error: Failed to obtain plugless binary."
@@ -58,8 +58,8 @@ chmod +x "$INSTALL_BIN/plugless"
 
 if curl -sL --fail "${RAW_BASE}/assets/app-icon-512.png" -o "$ICON_DIR/plugless.png" 2>/dev/null; then
     echo "Installed application icon."
-elif [ -f "/home/jasmin/Projects/Plugless/assets/app-icon-512.png" ]; then
-    cp "/home/jasmin/Projects/Plugless/assets/app-icon-512.png" "$ICON_DIR/plugless.png"
+elif [ -f "./assets/app-icon-512.png" ]; then
+    cp "./assets/app-icon-512.png" "$ICON_DIR/plugless.png"
 fi
 
 cat > "$APP_DIR/plugless.desktop" << 'EOF'

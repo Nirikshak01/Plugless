@@ -25,18 +25,28 @@ import androidx.compose.ui.unit.sp
 import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
 fun KeyboardScreen(
     service: PluglessService?,
     onBack: () -> Unit
 ) {
-    val keyboardActive = service?.keyboardEnabled ?: false
+    val keyboardActive by (service?.keyboardEnabled ?: remember { MutableStateFlow(false) }).collectAsState()
     var inputText by remember { mutableStateOf("") }
     var ctrlActive by remember { mutableStateOf(false) }
     var altActive by remember { mutableStateOf(false) }
     var shiftActive by remember { mutableStateOf(false) }
     var superActive by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (ctrlActive) service?.client?.sendSpecialKey("ctrl", "up")
+            if (altActive) service?.client?.sendSpecialKey("alt", "up")
+            if (shiftActive) service?.client?.sendSpecialKey("shift", "up")
+            if (superActive) service?.client?.sendSpecialKey("super", "up")
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -78,6 +88,12 @@ fun KeyboardScreen(
             Switch(
                 checked = keyboardActive,
                 onCheckedChange = { isChecked ->
+                    if (!isChecked) {
+                        if (ctrlActive) { ctrlActive = false; service?.client?.sendSpecialKey("ctrl", "up") }
+                        if (altActive) { altActive = false; service?.client?.sendSpecialKey("alt", "up") }
+                        if (shiftActive) { shiftActive = false; service?.client?.sendSpecialKey("shift", "up") }
+                        if (superActive) { superActive = false; service?.client?.sendSpecialKey("super", "up") }
+                    }
                     service?.setToolEnabled(ToolType.KEYBOARD, isChecked)
                 },
                 colors = SwitchDefaults.colors(
