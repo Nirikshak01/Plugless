@@ -59,7 +59,7 @@ jobs:
       - name: Compile APK
         run: |
           cd android
-          gradle assembleRelease --stacktrace --no-daemon || gradle assembleDebug --stacktrace --no-daemon
+          gradle assembleRelease --stacktrace --no-daemon
           mkdir -p ../artifacts
           find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../artifacts/Plugless.apk \;
 
@@ -70,9 +70,9 @@ jobs:
           path: artifacts/Plugless.apk
 
   publish-release:
-    name: Create GitHub Release
+    name: Publish Release Assets
     needs: [build-rust, build-apk]
-    if: startsWith(github.ref, "refs/tags/v")
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Download Rust Artifacts
@@ -87,8 +87,9 @@ jobs:
           name: Plugless-Android-APK
           path: release_files
 
-      - name: Publish GitHub Release Assets
+      - name: Update GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.0
           files: release_files/*
-          generate_release_notes: true
+          generate_release_notes: false
