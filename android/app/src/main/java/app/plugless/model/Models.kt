@@ -6,7 +6,8 @@ enum class ToolType {
     @SerializedName("mouse") MOUSE,
     @SerializedName("keyboard") KEYBOARD,
     @SerializedName("mic") MIC,
-    @SerializedName("speaker") SPEAKER
+    @SerializedName("speaker") SPEAKER,
+    @SerializedName("camera") CAMERA
 }
 
 enum class ConnectionState {
@@ -25,16 +26,16 @@ data class QrPayload(
 )
 
 data class PeripheralState(
-    val mouseEnabled: Boolean = true,
-    val keyboardEnabled: Boolean = true,
+    val mouseEnabled: Boolean = false,
+    val keyboardEnabled: Boolean = false,
     val micEnabled: Boolean = false,
     val speakerEnabled: Boolean = false,
+    val cameraEnabled: Boolean = false,
     val latencyMs: Long = 0L,
     val connectedHost: String? = null
 )
 
 data class AppSettings(
-    val themeMode: String = "dark", // "system", "light", "dark"
     val mouseSensitivity: Float = 1.0f,
     val scrollSpeed: Float = 1.0f,
     val naturalScroll: Boolean = true,

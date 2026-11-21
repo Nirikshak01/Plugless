@@ -23,8 +23,10 @@ pub struct ServerState {
     pub keyboard_enabled: bool,
     pub mic_enabled: bool,
     pub speaker_enabled: bool,
+    pub camera_enabled: bool,
     pub client_udp_addr: Option<SocketAddr>,
     pub pairing_token: Option<String>,
+    pub last_camera_frame: Option<Vec<u8>>,
 }
 
 impl ServerState {
@@ -59,8 +61,10 @@ impl ServerState {
             keyboard_enabled: true,
             mic_enabled: false,
             speaker_enabled: false,
+            camera_enabled: false,
             client_udp_addr: None,
             pairing_token,
+            last_camera_frame: None,
         }
     }
 }
@@ -88,6 +92,56 @@ impl PluglessServer {
         let udp_addr = format!("0.0.0.0:{}", self.udp_port);
         let udp_socket = Arc::new(UdpSocket::bind(&udp_addr).await?);
         info!("🔊 Plugless Audio Streamer listening on udp://{}", udp_addr);
+
+        // Spawn MJPEG Camera Server (available for OBS Studio, browsers, Zoom)
+        let mjpeg_addr = format!("0.0.0.0:{}", self.ws_port + 2);
+        if let Ok(mjpeg_listener) = TcpListener::bind(&mjpeg_addr).await {
+            info!("📹 Plugless Camera MJPEG Streamer listening on http://{}", mjpeg_addr);
+            let state_mjpeg = self.state.clone();
+            tokio::spawn(async move {
+                while let Ok((mut stream, _)) = mjpeg_listener.accept().await {
+                    let state_stream = state_mjpeg.clone();
+                    tokio::spawn(async move {
+                        use tokio::io::AsyncWriteExt;
+                        let header = "HTTP/1.0 200 OK\r\n\
+                            Server: Plugless-Webcam\r\n\
+                            Connection: close\r\n\
+                            Max-Age: 0\r\n\
+                            Expires: 0\r\n\
+                            Cache-Control: no-cache, private\r\n\
+                            Pragma: no-cache\r\n\
+                            Content-Type: multipart/x-mixed-replace; boundary=--frame\r\n\r\n";
+                        if stream.write_all(header.as_bytes()).await.is_err() {
+                            return;
+                        }
+
+                        loop {
+                            tokio::time::sleep(Duration::from_millis(50)).await;
+                            let frame_opt = {
+                                let st = state_stream.lock().await;
+                                st.last_camera_frame.clone()
+                            };
+
+                            if let Some(frame) = frame_opt {
+                                let part_header = format!(
+                                    "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: {}\r\n\r\n",
+                                    frame.len()
+                                );
+                                if stream.write_all(part_header.as_bytes()).await.is_err() {
+                                    break;
+                                }
+                                if stream.write_all(&frame).await.is_err() {
+                                    break;
+                                }
+                                if stream.write_all(b"\r\n").await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        }
 
         // Spawn UDP Audio Receiver Task (handles incoming mic stream from phone)
         let udp_rx = udp_socket.clone();
@@ -240,6 +294,7 @@ impl PluglessServer {
                                 keyboard: st.keyboard_enabled,
                                 mic: st.mic_enabled,
                                 speaker: st.speaker_enabled,
+                                camera: st.camera_enabled,
                                 mic_virtual_name: Some("Plugless_Virtual_Mic".to_string()),
                                 speaker_monitor_name: Some("@DEFAULT_MONITOR@".to_string()),
                             };
@@ -346,6 +401,10 @@ impl PluglessServer {
                                     }
                                     info!("Speaker tool toggled: {}", enabled);
                                 }
+                                ToolType::Camera => {
+                                    st.camera_enabled = enabled;
+                                    info!("Camera tool toggled: {}", enabled);
+                                }
                             }
 
                             // Broadcast updated state
@@ -354,12 +413,20 @@ impl PluglessServer {
                                 keyboard: st.keyboard_enabled,
                                 mic: st.mic_enabled,
                                 speaker: st.speaker_enabled,
+                                camera: st.camera_enabled,
                                 mic_virtual_name: Some("Plugless_Virtual_Mic".to_string()),
                                 speaker_monitor_name: Some("@DEFAULT_MONITOR@".to_string()),
                             };
                             ws_sender
                                 .send(Message::Text(serde_json::to_string(&sync)?))
                                 .await?;
+                        }
+                        ClientMessage::CameraFrame { data } => {
+                            if st.camera_enabled {
+                                if let Some(bytes) = decode_base64(&data) {
+                                    st.last_camera_frame = Some(bytes);
+                                }
+                            }
                         }
                         ClientMessage::Ping { client_ts } => {
                             let server_ts = SystemTime::now()
@@ -386,4 +453,28 @@ impl PluglessServer {
         info!("Client connection finished: {}", peer_addr);
         Ok(())
     }
+}
+
+fn decode_base64(input: &str) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    let mut buf = 0u32;
+    let mut bits = 0;
+    for &b in input.as_bytes() {
+        let val = match b {
+            b'A'..=b'Z' => b - b'A',
+            b'a'..=b'z' => b - b'a' + 26,
+            b'0'..=b'9' => b - b'0' + 52,
+            b'+' => 62,
+            b'/' => 63,
+            b'=' | b'\r' | b'\n' | b' ' => continue,
+            _ => return None,
+        };
+        buf = (buf << 6) | (val as u32);
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((buf >> bits) as u8);
+        }
+    }
+    Some(out)
 }

@@ -29,13 +29,15 @@ class PluglessService : Service() {
         private set
     var latencyMs: Long = 0L
         private set
-    var mouseEnabled: Boolean = true
+    var mouseEnabled: Boolean = false
         private set
-    var keyboardEnabled: Boolean = true
+    var keyboardEnabled: Boolean = false
         private set
     var micEnabled: Boolean = false
         private set
     var speakerEnabled: Boolean = false
+        private set
+    var cameraEnabled: Boolean = false
         private set
 
     var onStateChanged: (() -> Unit)? = null
@@ -73,12 +75,13 @@ class PluglessService : Service() {
                     }
                 }
             },
-            onStateSync = { m, k, mic, spk ->
+            onStateSync = { m, k, mic, spk, cam ->
                 scope.launch {
                     mouseEnabled = m
                     keyboardEnabled = k
                     micEnabled = mic
                     speakerEnabled = spk
+                    cameraEnabled = cam
 
                     // Handle audio stream toggles
                     if (mic) audioManager?.startMicrophone() else audioManager?.stopMicrophone()
@@ -100,31 +103,42 @@ class PluglessService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification("Connecting to PC..."))
     }
 
-    fun toggleTool(tool: ToolType) {
+    fun setToolEnabled(tool: ToolType, enabled: Boolean) {
         when (tool) {
-            ToolType.MOUSE -> client?.setToolState(ToolType.MOUSE, !mouseEnabled)
-            ToolType.KEYBOARD -> client?.setToolState(ToolType.KEYBOARD, !keyboardEnabled)
-            ToolType.MIC -> client?.setToolState(ToolType.MIC, !micEnabled)
-            ToolType.SPEAKER -> client?.setToolState(ToolType.SPEAKER, !speakerEnabled)
+            ToolType.MOUSE -> {
+                mouseEnabled = enabled
+                client?.setToolState(ToolType.MOUSE, enabled)
+            }
+            ToolType.KEYBOARD -> {
+                keyboardEnabled = enabled
+                client?.setToolState(ToolType.KEYBOARD, enabled)
+            }
+            ToolType.MIC -> {
+                micEnabled = enabled
+                client?.setToolState(ToolType.MIC, enabled)
+                if (enabled) audioManager?.startMicrophone() else audioManager?.stopMicrophone()
+            }
+            ToolType.SPEAKER -> {
+                speakerEnabled = enabled
+                client?.setToolState(ToolType.SPEAKER, enabled)
+                if (enabled) audioManager?.startSpeaker() else audioManager?.stopSpeaker()
+            }
+            ToolType.CAMERA -> {
+                cameraEnabled = enabled
+                client?.setToolState(ToolType.CAMERA, enabled)
+            }
         }
+        updateNotification()
+        onStateChanged?.invoke()
     }
 
-    fun applyPreset(preset: String) {
-        when (preset.lowercase()) {
-            "meeting" -> {
-                client?.setToolState(ToolType.MIC, true)
-                client?.setToolState(ToolType.SPEAKER, true)
-            }
-            "remote" -> {
-                client?.setToolState(ToolType.MOUSE, true)
-                client?.setToolState(ToolType.KEYBOARD, true)
-            }
-            "all" -> {
-                client?.setToolState(ToolType.MOUSE, true)
-                client?.setToolState(ToolType.KEYBOARD, true)
-                client?.setToolState(ToolType.MIC, true)
-                client?.setToolState(ToolType.SPEAKER, true)
-            }
+    fun toggleTool(tool: ToolType) {
+        when (tool) {
+            ToolType.MOUSE -> setToolEnabled(ToolType.MOUSE, !mouseEnabled)
+            ToolType.KEYBOARD -> setToolEnabled(ToolType.KEYBOARD, !keyboardEnabled)
+            ToolType.MIC -> setToolEnabled(ToolType.MIC, !micEnabled)
+            ToolType.SPEAKER -> setToolEnabled(ToolType.SPEAKER, !speakerEnabled)
+            ToolType.CAMERA -> setToolEnabled(ToolType.CAMERA, !cameraEnabled)
         }
     }
 
@@ -134,6 +148,11 @@ class PluglessService : Service() {
         audioManager?.release()
         audioManager = null
         connectionState = ConnectionState.DISCONNECTED
+        mouseEnabled = false
+        keyboardEnabled = false
+        micEnabled = false
+        speakerEnabled = false
+        cameraEnabled = false
         onStateChanged?.invoke()
         stopForeground(STOP_FOREGROUND_REMOVE)
     }
@@ -145,30 +164,16 @@ class PluglessService : Service() {
                 "Plugless Peripheral Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Keeps connection and audio streams alive in background"
+                description = "Runs background peripheral connection and streaming"
+                setShowBadge(false)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
     }
 
-    private fun buildNotification(statusText: String): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Plugless Peripherals Active")
-            .setContentText(statusText)
-            .setSmallIcon(R.drawable.ic_plugless_logo)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
-    }
-
     private fun updateNotification() {
+        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val text = when (connectionState) {
             ConnectionState.CONNECTED -> {
                 val activeList = mutableListOf<String>()
@@ -176,14 +181,36 @@ class PluglessService : Service() {
                 if (keyboardEnabled) activeList.add("Keyboard")
                 if (micEnabled) activeList.add("Mic")
                 if (speakerEnabled) activeList.add("Speaker")
-                "Connected • ${activeList.joinToString(", ")} ($latencyMs ms)"
+                if (cameraEnabled) activeList.add("Camera")
+
+                if (activeList.isEmpty()) {
+                    "Connected to PC (Idle)"
+                } else {
+                    "Active: ${activeList.joinToString(", ")}"
+                }
             }
             ConnectionState.CONNECTING -> "Connecting to PC..."
             ConnectionState.DISCONNECTED -> "Disconnected"
         }
-
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(NOTIFICATION_ID, buildNotification(text))
+    }
+
+    private fun buildNotification(contentText: String): Notification {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Plugless")
+            .setContentText(contentText)
+            .setSmallIcon(R.drawable.ic_launcher_background)
+            .setContentIntent(pendingIntent)
+            .setOngoing(true)
+            .build()
     }
 
     override fun onDestroy() {
@@ -193,7 +220,7 @@ class PluglessService : Service() {
     }
 
     companion object {
-        const val CHANNEL_ID = "plugless_foreground_channel"
+        const val CHANNEL_ID = "plugless_service_channel"
         const val NOTIFICATION_ID = 1001
     }
 }

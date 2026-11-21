@@ -20,19 +20,20 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import app.plugless.model.AppSettings
 import app.plugless.model.ConnectionState
 import app.plugless.model.QrPayload
 import app.plugless.service.PluglessService
 import app.plugless.ui.screens.*
-import app.plugless.ui.theme.BlackBackground
 import app.plugless.ui.theme.PluglessTheme
+import app.plugless.ui.theme.WhiteBackground
 import com.google.gson.Gson
 
 class MainActivity : ComponentActivity() {
 
     private var pluglessService: PluglessService? by mutableStateOf(null)
-    private var currentScreen by mutableStateOf("home") // "home", "touchpad", "keyboard", "scanner", "settings"
+    private var currentScreen by mutableStateOf("home")
     private var appSettings by mutableStateOf(AppSettings())
 
     private val serviceConnection = object : ServiceConnection {
@@ -40,7 +41,7 @@ class MainActivity : ComponentActivity() {
             val localBinder = binder as PluglessService.LocalBinder
             pluglessService = localBinder.getService()
             pluglessService?.onStateChanged = {
-                // Force recomposition
+                // Force state update in Compose
                 pluglessService = pluglessService
             }
 
@@ -67,8 +68,6 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val cameraGranted = permissions[Manifest.permission.CAMERA] ?: false
-        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] ?: false
-
         if (cameraGranted && currentScreen == "request_camera") {
             currentScreen = "scanner"
         }
@@ -78,12 +77,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         loadSettings()
 
+        // Configure edge-to-edge with light status bar (dark icons)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+        insetsController.isAppearanceLightStatusBars = true
+        insetsController.isAppearanceLightNavigationBars = true
+
         // Bind Foreground Service
         val intent = Intent(this, PluglessService::class.java)
         startService(intent)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
-        // Request initial permissions
+        // Request camera & audio permissions
         requestRequiredPermissions()
 
         setContent {
@@ -93,10 +98,10 @@ class MainActivity : ComponentActivity() {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             }
 
-            PluglessTheme(themeMode = appSettings.themeMode) {
+            PluglessTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = BlackBackground
+                    color = WhiteBackground
                 ) {
                     AnimatedContent(
                         targetState = currentScreen,
@@ -110,6 +115,9 @@ class MainActivity : ComponentActivity() {
                                 service = pluglessService,
                                 onNavigateTouchpad = { currentScreen = "touchpad" },
                                 onNavigateKeyboard = { currentScreen = "keyboard" },
+                                onNavigateMicrophone = { currentScreen = "microphone" },
+                                onNavigateSpeaker = { currentScreen = "speaker" },
+                                onNavigateCamera = { currentScreen = "camera" },
                                 onNavigateScanner = {
                                     if (hasCameraPermission()) {
                                         currentScreen = "scanner"
@@ -128,6 +136,21 @@ class MainActivity : ComponentActivity() {
                             )
 
                             "keyboard" -> KeyboardScreen(
+                                service = pluglessService,
+                                onBack = { currentScreen = "home" }
+                            )
+
+                            "microphone" -> MicrophoneScreen(
+                                service = pluglessService,
+                                onBack = { currentScreen = "home" }
+                            )
+
+                            "speaker" -> SpeakerScreen(
+                                service = pluglessService,
+                                onBack = { currentScreen = "home" }
+                            )
+
+                            "camera" -> CameraScreen(
                                 service = pluglessService,
                                 onBack = { currentScreen = "home" }
                             )
@@ -187,16 +210,27 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             permissions.add(Manifest.permission.POST_NOTIFICATIONS)
         }
-        permissionLauncher.launch(permissions.toTypedArray())
+
+        val ungranted = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (ungranted.isNotEmpty()) {
+            permissionLauncher.launch(ungranted.toTypedArray())
+        }
     }
 
     private fun loadSettings() {
         val prefs = getSharedPreferences("plugless_prefs", Context.MODE_PRIVATE)
         val json = prefs.getString("settings", null)
-        if (json != null) {
+        appSettings = if (json != null) {
             try {
-                appSettings = Gson().fromJson(json, AppSettings::class.java)
-            } catch (_: Exception) {}
+                Gson().fromJson(json, AppSettings::class.java)
+            } catch (_: Exception) {
+                AppSettings()
+            }
+        } else {
+            AppSettings()
         }
     }
 
@@ -207,6 +241,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        unbindService(serviceConnection)
+        try {
+            unbindService(serviceConnection)
+        } catch (_: Exception) {}
     }
 }

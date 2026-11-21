@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.plugless.model.AppSettings
+import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
 
@@ -32,6 +33,7 @@ fun TouchpadScreen(
     settings: AppSettings,
     onBack: () -> Unit
 ) {
+    val mouseActive = service?.mouseEnabled ?: false
     var sensitivity by remember { mutableFloatStateOf(settings.mouseSensitivity) }
     var lastX by remember { mutableFloatStateOf(0f) }
     var lastY by remember { mutableFloatStateOf(0f) }
@@ -40,12 +42,12 @@ fun TouchpadScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(WhiteBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
-        // Top Bar
+        // --- TOP BAR ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -57,101 +59,96 @@ fun TouchpadScreen(
                 onClick = onBack,
                 modifier = Modifier
                     .size(44.dp)
-                    .background(CardBackground, CircleShape)
+                    .background(CardGreyLight, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = TextDark
                 )
             }
 
             Text(
-                text = "Touchpad",
-                style = MaterialTheme.typography.titleMedium,
+                text = "Touchpad & Mouse",
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = TextDark
             )
 
-            // Sensitivity indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(CardBackground)
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.TouchApp,
-                    contentDescription = "Sensitivity",
-                    tint = AccentCyan,
-                    modifier = Modifier.size(16.dp)
+            // Prominent ON / OFF Switch
+            Switch(
+                checked = mouseActive,
+                onCheckedChange = { isChecked ->
+                    service?.setToolEnabled(ToolType.MOUSE, isChecked)
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = StatusGreen,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = CardBorder
                 )
-                Text(
-                    text = "${String.format("%.1f", sensitivity)}x",
-                    fontSize = 12.sp,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            )
         }
 
-        // --- TRACKPAD AREA ---
+        // --- SENSITIVITY BAR ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Speed", fontSize = 12.sp, color = TextMuted)
+            Slider(
+                value = sensitivity,
+                onValueChange = { sensitivity = it },
+                valueRange = 0.5f..3.0f,
+                modifier = Modifier.weight(1f),
+                colors = SliderDefaults.colors(
+                    thumbColor = BrandBlack,
+                    activeTrackColor = BrandBlack,
+                    inactiveTrackColor = CardBorder
+                )
+            )
+            Text("${String.format("%.1f", sensitivity)}x", fontSize = 12.sp, color = TextMuted)
+        }
+
+        // --- MAIN TOUCHPAD SURFACE ---
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(RoundedCornerShape(24.dp))
-                .background(CardBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                .pointerInteropFilter { motionEvent ->
-                    when (motionEvent.actionMasked) {
+                .background(if (mouseActive) CardGrey else CardGreyLight)
+                .border(
+                    width = 2.dp,
+                    color = if (mouseActive) BorderActive else CardBorder,
+                    shape = RoundedCornerShape(24.dp)
+                )
+                .pointerInteropFilter { event ->
+                    if (!mouseActive) return@pointerInteropFilter true
+                    when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            lastX = motionEvent.x
-                            lastY = motionEvent.y
+                            lastX = event.x
+                            lastY = event.y
                             true
                         }
                         MotionEvent.ACTION_MOVE -> {
-                            val count = motionEvent.pointerCount
-                            if (count == 1) {
-                                // 1-Finger Move
-                                val dx = (motionEvent.x - lastX) * sensitivity
-                                val dy = (motionEvent.y - lastY) * sensitivity
+                            val pointerCount = event.pointerCount
+                            if (pointerCount == 1) {
+                                val dx = (event.x - lastX) * sensitivity
+                                val dy = (event.y - lastY) * sensitivity
                                 service?.client?.sendMouseMove(dx, dy)
-                                lastX = motionEvent.x
-                                lastY = motionEvent.y
-                            } else if (count == 2) {
-                                // 2-Finger Scroll
-                                val dy = (motionEvent.y - lastY) * settings.scrollSpeed * 0.1f
-                                val dx = (motionEvent.x - lastX) * settings.scrollSpeed * 0.1f
-                                val scrollY = if (settings.naturalScroll) dy else -dy
-                                service?.client?.sendMouseScroll(dx, scrollY)
-                                lastX = motionEvent.x
-                                lastY = motionEvent.y
-                            }
-                            true
-                        }
-                        MotionEvent.ACTION_POINTER_DOWN -> {
-                            // 2-Finger Tap -> Right click
-                            if (motionEvent.pointerCount == 2) {
-                                service?.client?.sendMouseClick("right", "click")
+                                lastX = event.x
+                                lastY = event.y
+                            } else if (pointerCount == 2) {
+                                val dy = (event.y - lastY) * sensitivity * 0.5f
+                                service?.client?.sendMouseScroll(0f, dy)
+                                lastY = event.y
                             }
                             true
                         }
                         MotionEvent.ACTION_UP -> {
-                            val moveDist = Math.hypot(
-                                (motionEvent.x - lastX).toDouble(),
-                                (motionEvent.y - lastY).toDouble()
-                            )
-                            if (moveDist < 8.0 && motionEvent.eventTime - motionEvent.downTime < 200) {
-                                // Tap = Left Click
-                                service?.client?.sendMouseClick("left", "click")
-                            }
-                            if (isDragging) {
-                                isDragging = false
-                                service?.client?.sendMouseClick("left", "up")
-                            }
                             true
                         }
                         else -> false
@@ -161,86 +158,84 @@ fun TouchpadScreen(
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Trackpad",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary.copy(alpha = 0.5f)
+                Icon(
+                    imageVector = Icons.Default.TouchApp,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = if (mouseActive) BrandBlack else TextMuted
                 )
                 Text(
-                    text = "1-Finger Move & Tap • 2-Finger Scroll & Right Click",
-                    fontSize = 11.sp,
-                    color = TextSecondary.copy(alpha = 0.4f)
+                    text = if (mouseActive) "Touchpad Active" else "Touchpad Stopped",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (mouseActive) TextDark else TextMuted
+                )
+                Text(
+                    text = "1 finger: move • tap: click • 2 fingers: scroll",
+                    fontSize = 12.sp,
+                    color = TextMuted
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // --- BOTTOM MOUSE BUTTONS ---
+        // --- MOUSE BUTTONS ROW (Left, Drag, Right) ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Left Click Button
-            Box(
+            // Left Click
+            Button(
+                onClick = { service?.client?.sendMouseClick("left", "click") },
+                enabled = mouseActive,
                 modifier = Modifier
-                    .weight(1.5f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF1B1D2A))
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .clickable { service?.client?.sendMouseClick("left", "click") },
-                contentAlignment = Alignment.Center
+                    .weight(1.2f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlack)
+            ) {
+                Text("Left Click", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+
+            // Drag Lock Toggle
+            Button(
+                onClick = {
+                    isDragging = !isDragging
+                    val state = if (isDragging) "down" else "up"
+                    service?.client?.sendMouseClick("left", state)
+                },
+                enabled = mouseActive,
+                modifier = Modifier
+                    .weight(0.9f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDragging) StatusGreen else CardGreyLight
+                )
             ) {
                 Text(
-                    text = "LEFT CLICK",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = TextPrimary
+                    text = if (isDragging) "Dragging" else "Drag",
+                    fontWeight = FontWeight.Medium,
+                    color = if (isDragging) Color.White else TextDark
                 )
             }
 
-            // Middle Click Button
-            Box(
+            // Right Click
+            Button(
+                onClick = { service?.client?.sendMouseClick("right", "click") },
+                enabled = mouseActive,
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF1B1D2A))
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .clickable { service?.client?.sendMouseClick("middle", "click") },
-                contentAlignment = Alignment.Center
+                    .weight(1.2f)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BrandBlack)
             ) {
-                Text(
-                    text = "MIDDLE",
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    color = TextSecondary
-                )
-            }
-
-            // Right Click Button
-            Box(
-                modifier = Modifier
-                    .weight(1.5f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF1B1D2A))
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .clickable { service?.client?.sendMouseClick("right", "click") },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "RIGHT CLICK",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = TextPrimary
-                )
+                Text("Right Click", fontWeight = FontWeight.Bold, color = Color.White)
             }
         }
     }

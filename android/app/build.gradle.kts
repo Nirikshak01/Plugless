@@ -70,7 +70,8 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.11.0")
 
-    // QR Code Scanning (CameraX + ZXing)
+    // QR Code Scanning (ML Kit & ZXing fallback)
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)

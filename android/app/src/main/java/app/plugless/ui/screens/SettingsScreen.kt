@@ -2,8 +2,6 @@ package app.plugless.ui.screens
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.animation.Crossfade
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,7 +41,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(WhiteBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 12.dp)
@@ -53,290 +51,231 @@ fun SettingsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 8.dp),
+                .padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
                     .size(44.dp)
-                    .background(CardBackground, CircleShape)
+                    .background(CardGreyLight, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = TextDark
                 )
             }
-        }
 
-        // --- LOGO & HEADER ---
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_plugless_tile_dark),
-                contentDescription = "Plugless Tile",
-                modifier = Modifier
-                    .size(76.dp)
-                    .clip(RoundedCornerShape(18.dp))
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
+
             Text(
-                text = "Plugless v1.0.0",
-                style = MaterialTheme.typography.titleLarge,
+                text = "Settings",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(
-                text = "Zero-Wire PC Peripherals",
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
+                color = TextDark
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- THEME SELECTOR ---
-        SettingsSectionHeader("APPEARANCE")
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(CardBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        // --- APP HEADER CARD ---
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = CardGreyLight)
         ) {
-            ThemeOption("system", "System", settings.themeMode, Modifier.weight(1f)) {
-                onSettingsChanged(settings.copy(themeMode = it))
-            }
-            ThemeOption("light", "Light", settings.themeMode, Modifier.weight(1f)) {
-                onSettingsChanged(settings.copy(themeMode = it))
-            }
-            ThemeOption("dark", "Dark", settings.themeMode, Modifier.weight(1f)) {
-                onSettingsChanged(settings.copy(themeMode = it))
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(BrandBlack),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_plugless_logo),
+                        contentDescription = "Logo",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "Plugless",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark
+                    )
+                    Text(
+                        text = "Version 1.0.0 • Zero-Wire PC Peripherals",
+                        fontSize = 12.sp,
+                        color = TextMuted
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // --- MOUSE & TRACKPAD ---
-        SettingsSectionHeader("MOUSE & TRACKPAD")
+        // --- 1. CONNECTION & PAIRING ---
+        SettingsSectionHeader("Connection")
         SettingsCard {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Pointer Sensitivity: ${String.format("%.1f", settings.mouseSensitivity)}x",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+            SettingsToggleRow(
+                title = "Auto-Reconnect to PC",
+                subtitle = "Automatically re-pair with last known PC on app launch",
+                checked = settings.autoConnect,
+                onCheckedChange = { onSettingsChanged(settings.copy(autoConnect = it)) }
+            )
+
+            if (settings.lastHostIp != null) {
+                HorizontalDivider(color = CardBorder)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Paired PC IP", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                        Text(settings.lastHostIp ?: "None", fontSize = 12.sp, color = TextMuted)
+                    }
+
+                    TextButton(
+                        onClick = {
+                            onSettingsChanged(settings.copy(lastHostIp = null, lastToken = null))
+                        }
+                    ) {
+                        Text("Forget", color = StatusRed, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        // --- 2. MOUSE & TOUCHPAD ---
+        SettingsSectionHeader("Mouse & Touchpad")
+        SettingsCard {
+            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Mouse Sensitivity", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    Text("${String.format("%.1f", settings.mouseSensitivity)}x", fontSize = 13.sp, color = TextMuted)
+                }
                 Slider(
                     value = settings.mouseSensitivity,
                     onValueChange = { onSettingsChanged(settings.copy(mouseSensitivity = it)) },
                     valueRange = 0.5f..3.0f,
-                    steps = 5,
                     colors = SliderDefaults.colors(
-                        thumbColor = AccentIndigo,
-                        activeTrackColor = AccentIndigo,
-                        inactiveTrackColor = CardBorder
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                SettingsToggleRow(
-                    title = "Natural Scrolling",
-                    subtitle = "Scroll contents in direction of finger swipe",
-                    checked = settings.naturalScroll,
-                    onCheckedChange = { onSettingsChanged(settings.copy(naturalScroll = it)) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // --- MICROPHONE & SPEECH ---
-        SettingsSectionHeader("AUDIO & COMBINATION MODE")
-        SettingsCard {
-            Column(modifier = Modifier.padding(16.dp)) {
-                SettingsToggleRow(
-                    title = "AI Noise Suppression",
-                    subtitle = "Filter out background keyboard clicks and ambient noise",
-                    checked = settings.noiseSuppression,
-                    onCheckedChange = { onSettingsChanged(settings.copy(noiseSuppression = it)) }
-                )
-
-                Divider(color = CardBorder, modifier = Modifier.padding(vertical = 12.dp))
-
-                SettingsToggleRow(
-                    title = "Acoustic Echo Cancellation",
-                    subtitle = "Prevent feedback loop when mic and speaker are both on",
-                    checked = settings.echoCancellation,
-                    onCheckedChange = { onSettingsChanged(settings.copy(echoCancellation = it)) }
-                )
-
-                Divider(color = CardBorder, modifier = Modifier.padding(vertical = 12.dp))
-
-                Text(
-                    text = "Microphone Gain Boost: ${String.format("%.1f", settings.micGain)}x",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Slider(
-                    value = settings.micGain,
-                    onValueChange = { onSettingsChanged(settings.copy(micGain = it)) },
-                    valueRange = 0.5f..2.5f,
-                    steps = 4,
-                    colors = SliderDefaults.colors(
-                        thumbColor = AccentCyan,
-                        activeTrackColor = AccentCyan,
+                        thumbColor = BrandBlack,
+                        activeTrackColor = BrandBlack,
                         inactiveTrackColor = CardBorder
                     )
                 )
             }
+
+            HorizontalDivider(color = CardBorder)
+
+            SettingsToggleRow(
+                title = "Natural Scrolling",
+                subtitle = "Content moves in direction of two-finger swipe",
+                checked = settings.naturalScroll,
+                onCheckedChange = { onSettingsChanged(settings.copy(naturalScroll = it)) }
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // --- HARDWARE & SYSTEM ---
-        SettingsSectionHeader("SYSTEM PREFERENCES")
+        // --- 3. SYSTEM & HARDWARE ---
+        SettingsSectionHeader("System & Display")
         SettingsCard {
-            Column(modifier = Modifier.padding(16.dp)) {
-                SettingsToggleRow(
-                    title = "Keep Screen Awake",
-                    subtitle = "Prevent display sleep while trackpad is open",
-                    checked = settings.keepScreenOn,
-                    onCheckedChange = { onSettingsChanged(settings.copy(keepScreenOn = it)) }
-                )
+            SettingsToggleRow(
+                title = "Keep Screen On",
+                subtitle = "Prevents screen sleep while active or connected",
+                checked = settings.keepScreenOn,
+                onCheckedChange = { onSettingsChanged(settings.copy(keepScreenOn = it)) }
+            )
 
-                Divider(color = CardBorder, modifier = Modifier.padding(vertical = 12.dp))
+            HorizontalDivider(color = CardBorder)
 
-                SettingsToggleRow(
-                    title = "Haptic Vibration Feedback",
-                    subtitle = "Vibrate softly on touch clicks and QR scan",
-                    checked = settings.hapticFeedback,
-                    onCheckedChange = { onSettingsChanged(settings.copy(hapticFeedback = it)) }
-                )
-
-                Divider(color = CardBorder, modifier = Modifier.padding(vertical = 12.dp))
-
-                SettingsToggleRow(
-                    title = "Auto-Connect on Startup",
-                    subtitle = "Automatically reconnect to last paired PC",
-                    checked = settings.autoConnect,
-                    onCheckedChange = { onSettingsChanged(settings.copy(autoConnect = it)) }
-                )
-            }
+            SettingsToggleRow(
+                title = "Haptic Feedback",
+                subtitle = "Vibrate on button clicks and QR detection",
+                checked = settings.hapticFeedback,
+                onCheckedChange = { onSettingsChanged(settings.copy(hapticFeedback = it)) }
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // --- LINKS & GITHUB ---
-        SettingsSectionHeader("ABOUT & COMMUNITY")
+        // --- 4. ABOUT & GITHUB ---
+        SettingsSectionHeader("About")
         SettingsCard {
-            Column(modifier = Modifier.padding(8.dp)) {
-                SettingsLinkRow(
-                    icon = Icons.Default.Code,
-                    title = "GitHub Repository",
-                    subtitle = "https://github.com/Nirikshak01/Plugless",
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Nirikshak01/Plugless"))
-                        context.startActivity(intent)
-                    }
-                )
+            SettingsLinkRow(
+                title = "GitHub Repository",
+                subtitle = "github.com/Nirikshak01/Plugless",
+                icon = Icons.Default.Code,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Nirikshak01/Plugless"))
+                    context.startActivity(intent)
+                }
+            )
 
-                SettingsLinkRow(
-                    icon = Icons.Default.Security,
-                    title = "Privacy & Zero Telemetry",
-                    subtitle = "100% LAN local, no cloud servers or tracking",
-                    onClick = {}
-                )
-            }
+            HorizontalDivider(color = CardBorder)
+
+            SettingsLinkRow(
+                title = "Download Latest APK",
+                subtitle = "Check for updates and release notes",
+                icon = Icons.Default.Download,
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Nirikshak01/Plugless/releases"))
+                    context.startActivity(intent)
+                }
+            )
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(28.dp))
     }
 }
 
 @Composable
-fun SettingsSectionHeader(title: String) {
+private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelSmall,
-        color = TextSecondary,
+        fontSize = 13.sp,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+        color = TextMuted,
+        modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp)
     )
 }
 
 @Composable
-fun SettingsCard(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(CardBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = CardGreyLight)
     ) {
-        content()
-    }
-}
-
-@Composable
-fun ThemeOption(
-    id: String,
-    label: String,
-    selected: String,
-    modifier: Modifier,
-    onSelect: (String) -> Unit
-) {
-    val isSelected = selected == id
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (isSelected) AccentIndigo else Color.Transparent)
-            .clickable { onSelect(id) }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color.White else TextSecondary
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = content
         )
     }
 }
 
 @Composable
-fun SettingsToggleRow(
+private fun SettingsToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextPrimary,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
-            )
+        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+            Text(subtitle, fontSize = 12.sp, color = TextMuted)
         }
 
         Switch(
@@ -344,49 +283,45 @@ fun SettingsToggleRow(
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = AccentIndigo,
-                uncheckedThumbColor = TextSecondary,
-                uncheckedTrackColor = Color(0xFF1D202D),
-                uncheckedBorderColor = Color.Transparent
+                checkedTrackColor = BrandBlack,
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = CardBorder
             )
         )
     }
 }
 
 @Composable
-fun SettingsLinkRow(
-    icon: ImageVector,
+private fun SettingsLinkRow(
     title: String,
     subtitle: String,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = AccentIndigo,
-            modifier = Modifier.size(22.dp)
-        )
-        Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
-            )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(imageVector = icon, contentDescription = null, tint = TextDark, modifier = Modifier.size(20.dp))
+            Column {
+                Text(title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                Text(subtitle, fontSize = 12.sp, color = TextMuted)
+            }
         }
+
+        Icon(
+            imageVector = Icons.Default.OpenInNew,
+            contentDescription = null,
+            tint = TextMuted,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
 
@@ -29,6 +30,7 @@ fun KeyboardScreen(
     service: PluglessService?,
     onBack: () -> Unit
 ) {
+    val keyboardActive = service?.keyboardEnabled ?: false
     var inputText by remember { mutableStateOf("") }
     var ctrlActive by remember { mutableStateOf(false) }
     var altActive by remember { mutableStateOf(false) }
@@ -38,12 +40,12 @@ fun KeyboardScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(WhiteBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
-        // Top Bar
+        // --- TOP BAR ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -55,265 +57,270 @@ fun KeyboardScreen(
                 onClick = onBack,
                 modifier = Modifier
                     .size(44.dp)
-                    .background(CardBackground, CircleShape)
+                    .background(CardGreyLight, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = TextPrimary
+                    tint = TextDark
                 )
             }
 
             Text(
-                text = "PC Remote Keyboard",
-                style = MaterialTheme.typography.titleMedium,
+                text = "PC Keyboard",
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                color = TextDark
             )
 
-            Spacer(modifier = Modifier.size(44.dp))
+            // Prominent ON / OFF Switch
+            Switch(
+                checked = keyboardActive,
+                onCheckedChange = { isChecked ->
+                    service?.setToolEnabled(ToolType.KEYBOARD, isChecked)
+                },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = StatusGreen,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = CardBorder
+                )
+            )
         }
 
-        // --- TYPING INPUT FIELD ---
+        // --- DIRECT TYPING INPUT BOX ---
         OutlinedTextField(
             value = inputText,
             onValueChange = { newText ->
-                if (newText.length > inputText.length) {
-                    val added = newText.substring(inputText.length)
-                    service?.client?.sendText(added)
-                } else if (newText.length < inputText.length) {
-                    service?.client?.sendSpecialKey("backspace", "click")
+                if (keyboardActive && newText.length > inputText.length) {
+                    val typed = newText.substring(inputText.length)
+                    service?.client?.sendText(typed)
                 }
                 inputText = newText
             },
-            placeholder = { Text("Tap here to type on PC...", color = TextSecondary) },
-            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            placeholder = { Text("Type here to send keystrokes directly to PC...") },
+            shape = RoundedCornerShape(16.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(
                 onSend = {
-                    service?.client?.sendSpecialKey("enter", "click")
-                    inputText = ""
+                    if (keyboardActive) {
+                        service?.client?.sendSpecialKey("enter", "click")
+                        inputText = ""
+                    }
                 }
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = CardBackground,
-                unfocusedContainerColor = CardBackground,
-                focusedBorderColor = AccentIndigo,
+                focusedBorderColor = BrandBlack,
                 unfocusedBorderColor = CardBorder,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedContainerColor = WhiteSurface,
+                unfocusedContainerColor = WhiteSurface
             )
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- MODIFIER KEYS ROW (Ctrl, Alt, Shift, Super, Esc, Tab) ---
-        Text(
-            text = "MODIFIER KEYS",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
+        // --- SPECIAL MODIFIERS ROW ---
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ModifierKeyChip(
-                name = "Ctrl",
-                isActive = ctrlActive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    ctrlActive = !ctrlActive
-                    service?.client?.sendSpecialKey("ctrl", if (ctrlActive) "down" else "up")
-                }
-            )
-            ModifierKeyChip(
-                name = "Alt",
-                isActive = altActive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    altActive = !altActive
-                    service?.client?.sendSpecialKey("alt", if (altActive) "down" else "up")
-                }
-            )
-            ModifierKeyChip(
-                name = "Shift",
-                isActive = shiftActive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    shiftActive = !shiftActive
-                    service?.client?.sendSpecialKey("shift", if (shiftActive) "down" else "up")
-                }
-            )
-            ModifierKeyChip(
-                name = "Super",
-                isActive = superActive,
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    superActive = !superActive
-                    service?.client?.sendSpecialKey("super", if (superActive) "down" else "up")
-                }
-            )
-            KeyButton(
-                label = "Esc",
-                modifier = Modifier.weight(1f),
-                onClick = { service?.client?.sendSpecialKey("esc", "click") }
-            )
-            KeyButton(
-                label = "Tab",
-                modifier = Modifier.weight(1f),
-                onClick = { service?.client?.sendSpecialKey("tab", "click") }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- QUICK SHORTCUTS ---
-        Text(
-            text = "QUICK SHORTCUTS",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            KeyButton(
-                label = "Copy",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    service?.client?.sendSpecialKey("ctrl", "down")
-                    service?.client?.sendText("c")
-                    service?.client?.sendSpecialKey("ctrl", "up")
-                }
-            )
-            KeyButton(
-                label = "Paste",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    service?.client?.sendSpecialKey("ctrl", "down")
-                    service?.client?.sendText("v")
-                    service?.client?.sendSpecialKey("ctrl", "up")
-                }
-            )
-            KeyButton(
-                label = "Undo",
-                modifier = Modifier.weight(1f),
-                onClick = {
-                    service?.client?.sendSpecialKey("ctrl", "down")
-                    service?.client?.sendText("z")
-                    service?.client?.sendSpecialKey("ctrl", "up")
-                }
-            )
-            KeyButton(
-                label = "Alt+Tab",
-                modifier = Modifier.weight(1.2f),
-                onClick = {
-                    service?.client?.sendSpecialKey("alt", "down")
-                    service?.client?.sendSpecialKey("tab", "click")
-                    service?.client?.sendSpecialKey("alt", "up")
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // --- ARROW KEYS NAVIGATION PAD ---
-        Text(
-            text = "NAVIGATION PAD",
-            style = MaterialTheme.typography.labelSmall,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 6.dp)
-        )
-        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Up
-            KeyButton(
-                label = "▲",
-                modifier = Modifier.size(68.dp, 54.dp),
-                onClick = { service?.client?.sendSpecialKey("up", "click") }
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            // Left, Down, Right
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                KeyButton(
-                    label = "◀",
-                    modifier = Modifier.size(68.dp, 54.dp),
-                    onClick = { service?.client?.sendSpecialKey("left", "click") }
+            ModifierKeyButton("Ctrl", ctrlActive, Modifier.weight(1f)) {
+                ctrlActive = !ctrlActive
+                val state = if (ctrlActive) "down" else "up"
+                service?.client?.sendSpecialKey("ctrl", state)
+            }
+            ModifierKeyButton("Alt", altActive, Modifier.weight(1f)) {
+                altActive = !altActive
+                val state = if (altActive) "down" else "up"
+                service?.client?.sendSpecialKey("alt", state)
+            }
+            ModifierKeyButton("Shift", shiftActive, Modifier.weight(1f)) {
+                shiftActive = !shiftActive
+                val state = if (shiftActive) "down" else "up"
+                service?.client?.sendSpecialKey("shift", state)
+            }
+            ModifierKeyButton("Super", superActive, Modifier.weight(1f)) {
+                superActive = !superActive
+                val state = if (superActive) "down" else "up"
+                service?.client?.sendSpecialKey("super", state)
+            }
+        }
+
+        // --- FUNCTION KEYS ROW ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ActionKeyButton("Esc", Modifier.weight(1f)) {
+                service?.client?.sendSpecialKey("esc", "click")
+            }
+            ActionKeyButton("Tab", Modifier.weight(1f)) {
+                service?.client?.sendSpecialKey("tab", "click")
+            }
+            ActionKeyButton("Bksp", Modifier.weight(1f)) {
+                service?.client?.sendSpecialKey("backspace", "click")
+            }
+            ActionKeyButton("Enter", Modifier.weight(1f)) {
+                service?.client?.sendSpecialKey("enter", "click")
+            }
+        }
+
+        // --- SHORTCUTS CARD ---
+        Card(
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = CardGreyLight)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Quick PC Shortcuts",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextDark
                 )
-                KeyButton(
-                    label = "▼",
-                    modifier = Modifier.size(68.dp, 54.dp),
-                    onClick = { service?.client?.sendSpecialKey("down", "click") }
-                )
-                KeyButton(
-                    label = "▶",
-                    modifier = Modifier.size(68.dp, 54.dp),
-                    onClick = { service?.client?.sendSpecialKey("right", "click") }
-                )
+
+                // Row of quick combos
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ShortcutPill("Ctrl+C (Copy)", Modifier.weight(1f)) {
+                        service?.client?.sendSpecialKey("ctrl", "down")
+                        service?.client?.sendText("c")
+                        service?.client?.sendSpecialKey("ctrl", "up")
+                    }
+                    ShortcutPill("Ctrl+V (Paste)", Modifier.weight(1f)) {
+                        service?.client?.sendSpecialKey("ctrl", "down")
+                        service?.client?.sendText("v")
+                        service?.client?.sendSpecialKey("ctrl", "up")
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ShortcutPill("Alt+Tab (Switch)", Modifier.weight(1f)) {
+                        service?.client?.sendSpecialKey("alt", "down")
+                        service?.client?.sendSpecialKey("tab", "click")
+                        service?.client?.sendSpecialKey("alt", "up")
+                    }
+                    ShortcutPill("Super (App Menu)", Modifier.weight(1f)) {
+                        service?.client?.sendSpecialKey("super", "click")
+                    }
+                }
+
+                // Arrow Navigation Pad
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    IconButton(
+                        onClick = { service?.client?.sendSpecialKey("up", "click") },
+                        modifier = Modifier.size(44.dp).background(WhiteSurface, CircleShape)
+                    ) {
+                        Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Up", tint = TextDark)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        IconButton(
+                            onClick = { service?.client?.sendSpecialKey("left", "click") },
+                            modifier = Modifier.size(44.dp).background(WhiteSurface, CircleShape)
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Left", tint = TextDark)
+                        }
+                        IconButton(
+                            onClick = { service?.client?.sendSpecialKey("down", "click") },
+                            modifier = Modifier.size(44.dp).background(WhiteSurface, CircleShape)
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Down", tint = TextDark)
+                        }
+                        IconButton(
+                            onClick = { service?.client?.sendSpecialKey("right", "click") },
+                            modifier = Modifier.size(44.dp).background(WhiteSurface, CircleShape)
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Right", tint = TextDark)
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun ModifierKeyChip(
-    name: String,
+private fun ModifierKeyButton(
+    title: String,
     isActive: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isActive) AccentIndigo else CardBackground)
-            .border(
-                1.dp,
-                if (isActive) Color.White else CardBorder,
-                RoundedCornerShape(12.dp)
-            )
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isActive) BrandBlack else WhiteSurface
+        ),
+        border = BorderStroke(1.dp, if (isActive) BrandBlack else CardBorder),
+        contentPadding = PaddingValues(0.dp)
     ) {
         Text(
-            text = name,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isActive) Color.White else TextPrimary
+            text = title,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isActive) Color.White else TextDark
         )
     }
 }
 
 @Composable
-fun KeyButton(
+private fun ActionKeyButton(
+    title: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = WhiteSurface),
+        border = BorderStroke(1.dp, CardBorder),
+        contentPadding = PaddingValues(0.dp)
+    ) {
+        Text(
+            text = title,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = TextDark
+        )
+    }
+}
+
+@Composable
+private fun ShortcutPill(
     label: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(38.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = WhiteSurface,
+        border = BorderStroke(1.dp, CardBorder)
     ) {
-        Text(
-            text = label,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary
-        )
+        Box(contentAlignment = Alignment.Center) {
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = TextDark)
+        }
     }
 }

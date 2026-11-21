@@ -8,6 +8,7 @@ pub enum ToolType {
     Keyboard,
     Mic,
     Speaker,
+    Camera,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -68,6 +69,9 @@ pub enum ClientMessage {
         tool: ToolType,
         enabled: bool,
     },
+    CameraFrame {
+        data: String,
+    },
     Ping {
         client_ts: u64,
     },
@@ -86,6 +90,7 @@ pub enum ServerMessage {
         keyboard: bool,
         mic: bool,
         speaker: bool,
+        camera: bool,
         mic_virtual_name: Option<String>,
         speaker_monitor_name: Option<String>,
     },

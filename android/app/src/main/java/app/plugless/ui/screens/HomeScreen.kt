@@ -1,30 +1,30 @@
 package app.plugless.ui.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.plugless.R
 import app.plugless.model.ConnectionState
-import app.plugless.model.ToolType
 import app.plugless.service.PluglessService
 import app.plugless.ui.theme.*
 
@@ -33,23 +33,31 @@ fun HomeScreen(
     service: PluglessService?,
     onNavigateTouchpad: () -> Unit,
     onNavigateKeyboard: () -> Unit,
+    onNavigateMicrophone: () -> Unit,
+    onNavigateSpeaker: () -> Unit,
+    onNavigateCamera: () -> Unit,
     onNavigateScanner: () -> Unit,
     onNavigateSettings: () -> Unit
 ) {
     val connectionState = service?.connectionState ?: ConnectionState.DISCONNECTED
-    val latencyMs = service?.latencyMs ?: 0L
     val mouseOn = service?.mouseEnabled ?: false
     val kbOn = service?.keyboardEnabled ?: false
     val micOn = service?.micEnabled ?: false
     val spkOn = service?.speakerEnabled ?: false
+    val camOn = service?.cameraEnabled ?: false
+
+    var showDisconnectDialog by remember { mutableStateOf(false) }
+    var showRequestToolDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(BlackBackground)
+            .background(WhiteBackground)
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // --- TOP BAR ---
         Row(
@@ -59,369 +67,334 @@ fun HomeScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Logo Tile
-                Image(
-                    painter = painterResource(id = R.drawable.ic_plugless_tile_dark),
-                    contentDescription = "Plugless Logo",
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-
-                Column {
-                    Text(
-                        text = "Plugless",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Zero-Wire Peripherals",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // Connection Pill
-                ConnectionStatusPill(
-                    connectionState = connectionState,
-                    latencyMs = latencyMs,
-                    onTap = {
-                        if (connectionState == ConnectionState.DISCONNECTED) {
-                            onNavigateScanner()
-                        } else {
-                            service?.disconnect()
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Settings Gear
-                IconButton(
-                    onClick = onNavigateSettings,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(CardBackground, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = "Settings",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // --- PRESET ROW ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            PresetPill(
-                label = "📞 Meeting",
-                isActive = micOn && spkOn,
-                onClick = { service?.applyPreset("meeting") }
-            )
-            PresetPill(
-                label = "🎮 Remote",
-                isActive = mouseOn && kbOn,
-                onClick = { service?.applyPreset("remote") }
-            )
-            PresetPill(
-                label = "⚡ All On",
-                isActive = mouseOn && kbOn && micOn && spkOn,
-                onClick = { service?.applyPreset("all") }
-            )
-        }
-
-        // --- 2x2 PERIPHERAL TILES ---
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Row 1: Mouse & Keyboard
-            Row(
+            // Left: Black rounded square logo box
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                PeripheralTile(
-                    title = "Mouse",
-                    subtitle = if (mouseOn) "Touchpad active" else "Tap to toggle",
-                    iconRes = R.drawable.ic_mouse,
-                    isActive = mouseOn,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { service?.toggleTool(ToolType.MOUSE) },
-                    onOpenScreen = onNavigateTouchpad
-                )
-
-                PeripheralTile(
-                    title = "Keyboard",
-                    subtitle = if (kbOn) "Typing & hotkeys" else "Tap to toggle",
-                    iconRes = R.drawable.ic_keyboard,
-                    isActive = kbOn,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { service?.toggleTool(ToolType.KEYBOARD) },
-                    onOpenScreen = onNavigateKeyboard
-                )
-            }
-
-            // Row 2: Microphone & Speaker
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                PeripheralTile(
-                    title = "Microphone",
-                    subtitle = if (micOn) "Streaming to PC" else "Virtual mic off",
-                    iconRes = R.drawable.ic_mic,
-                    isActive = micOn,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { service?.toggleTool(ToolType.MIC) },
-                    onOpenScreen = null
-                )
-
-                PeripheralTile(
-                    title = "Speaker",
-                    subtitle = if (spkOn) "Playing PC audio" else "Speaker off",
-                    iconRes = R.drawable.ic_speaker,
-                    isActive = spkOn,
-                    modifier = Modifier.weight(1f),
-                    onToggle = { service?.toggleTool(ToolType.SPEAKER) },
-                    onOpenScreen = null
-                )
-            }
-        }
-
-        // --- BOTTOM ACTION (SCAN / STATUS) ---
-        if (connectionState == ConnectionState.DISCONNECTED) {
-            Spacer(modifier = Modifier.height(14.dp))
-            Button(
-                onClick = onNavigateScanner,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .shadow(16.dp, RoundedCornerShape(16.dp), spotColor = AccentIndigo),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = AccentIndigo
-                )
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(BrandBlack),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.QrCodeScanner,
-                    contentDescription = "Scan PC",
+                    painter = painterResource(id = R.drawable.ic_plugless_logo),
+                    contentDescription = "Plugless Logo",
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(26.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Scan PC Terminal QR Code",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+            }
+
+            // Right: Settings Outline Gear Icon
+            IconButton(
+                onClick = onNavigateSettings,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Settings,
+                    contentDescription = "Settings",
+                    tint = TextDark,
+                    modifier = Modifier.size(26.dp)
                 )
             }
         }
-    }
-}
 
-@Composable
-fun ConnectionStatusPill(
-    connectionState: ConnectionState,
-    latencyMs: Long,
-    onTap: () -> Unit
-) {
-    val (bgColor, dotColor, text) = when (connectionState) {
-        ConnectionState.CONNECTED -> Triple(Color(0xFF0F291E), SuccessGreen, "$latencyMs ms")
-        ConnectionState.CONNECTING -> Triple(Color(0xFF2D2305), WarningAmber, "Connecting")
-        ConnectionState.DISCONNECTED -> Triple(CardBackground, TextSecondary, "Scan PC")
-    }
-
-    Row(
-        modifier = Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bgColor)
-            .border(1.dp, dotColor.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-            .clickable(onClick = onTap)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        Box(
+        // --- HERO ILLUSTRATION CARD ---
+        Card(
             modifier = Modifier
-                .size(8.dp)
-                .background(dotColor, CircleShape)
-        )
-        Text(
-            text = text,
-            color = TextPrimary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold
-        )
-    }
-}
+                .fillMaxWidth()
+                .height(180.dp),
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = CardGreyLight),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.banner_scan_illustration),
+                    contentDescription = "Scan PC Peripherals Illustration",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        }
 
-@Composable
-fun PresetPill(
-    label: String,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isActive) AccentIndigo.copy(alpha = 0.25f) else CardBackground)
-            .border(
-                width = 1.dp,
-                color = if (isActive) AccentIndigo else CardBorder,
-                shape = RoundedCornerShape(14.dp)
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = label,
-            color = if (isActive) Color.White else TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
-        )
-    }
-}
+        Spacer(modifier = Modifier.height(18.dp))
 
-@Composable
-fun PeripheralTile(
-    title: String,
-    subtitle: String,
-    iconRes: Int,
-    isActive: Boolean,
-    modifier: Modifier = Modifier,
-    onToggle: () -> Unit,
-    onOpenScreen: (() -> Unit)?
-) {
-    val borderColor by animateColorAsState(
-        targetValue = if (isActive) CardBorderActive else CardBorder,
-        animationSpec = tween(300),
-        label = "tileBorder"
-    )
-
-    val bgColor by animateColorAsState(
-        targetValue = if (isActive) Color(0xFF131524) else CardBackground,
-        animationSpec = tween(300),
-        label = "tileBg"
-    )
-
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .clip(RoundedCornerShape(24.dp))
-            .background(bgColor)
-            .border(1.5.dp, borderColor, RoundedCornerShape(24.dp))
-            .clickable {
-                if (onOpenScreen != null && isActive) {
-                    onOpenScreen()
+        // --- ACTION PILL BUTTON (Scan / Connected) ---
+        Surface(
+            onClick = {
+                if (connectionState == ConnectionState.CONNECTED) {
+                    showDisconnectDialog = true
                 } else {
-                    onToggle()
+                    onNavigateScanner()
+                }
+            },
+            shape = RoundedCornerShape(50.dp),
+            color = if (connectionState == ConnectionState.CONNECTED) ConnectedPillBg else PillButtonBg,
+            modifier = Modifier
+                .width(160.dp)
+                .height(46.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Text(
+                    text = when (connectionState) {
+                        ConnectionState.CONNECTED -> "● Connected"
+                        ConnectionState.CONNECTING -> "Connecting..."
+                        ConnectionState.DISCONNECTED -> "Scan"
+                    },
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (connectionState == ConnectionState.CONNECTED) ConnectedPillText else PillButtonText
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // --- 2x2 PERIPHERAL TILES GRID ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Mouse Tile
+            PeripheralTile(
+                title = "Mouse",
+                iconResId = R.drawable.ic_mouse,
+                isActive = mouseOn,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateTouchpad
+            )
+
+            // Keyboard Tile
+            PeripheralTile(
+                title = "Keyboard",
+                iconResId = R.drawable.ic_keyboard,
+                isActive = kbOn,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateKeyboard
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Microphone Tile
+            PeripheralTile(
+                title = "Microphone",
+                iconResId = R.drawable.ic_mic,
+                isActive = micOn,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateMicrophone
+            )
+
+            // Speaker Tile
+            PeripheralTile(
+                title = "Speaker",
+                iconResId = R.drawable.ic_speaker,
+                isActive = spkOn,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateSpeaker
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --- 3RD ROW: CAMERA & REQUEST TOOL (+) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Camera (Webcam) Tile
+            PeripheralTile(
+                title = "Camera",
+                iconResId = R.drawable.ic_camera,
+                isActive = camOn,
+                modifier = Modifier.weight(1f),
+                onClick = onNavigateCamera
+            )
+
+            // Request Tool (+) Card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(140.dp)
+                    .clickable { showRequestToolDialog = true },
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = CardGreyLight),
+                border = BorderStroke(1.dp, CardBorder)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(WhiteSurface)
+                            .border(1.dp, CardBorder, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Peripheral",
+                            tint = TextDark,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Text(
+                        text = "More Tools",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = TextMuted
+                    )
                 }
             }
-            .padding(16.dp)
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Disconnect Confirmation Dialog
+    if (showDisconnectDialog) {
+        AlertDialog(
+            onDismissRequest = { showDisconnectDialog = false },
+            title = { Text("PC Connection Active", fontWeight = FontWeight.Bold, color = TextDark) },
+            text = {
+                Text(
+                    "You are currently connected to your PC. Would you like to disconnect?",
+                    fontSize = 14.sp,
+                    color = TextMuted
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDisconnectDialog = false
+                        service?.disconnect()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = StatusRed)
+                ) {
+                    Text("Disconnect", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDisconnectDialog = false }) {
+                    Text("Stay Connected", color = TextDark)
+                }
+            },
+            containerColor = WhiteSurface
+        )
+    }
+
+    // Request Tool Dialog
+    if (showRequestToolDialog) {
+        AlertDialog(
+            onDismissRequest = { showRequestToolDialog = false },
+            title = { Text("Upcoming Peripherals", fontWeight = FontWeight.Bold, color = TextDark) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("The following PC peripherals are planned next:", fontSize = 13.sp, color = TextMuted)
+                    Text("🎮 Virtual Gamepad / Controller", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    Text("📋 Cross-Device Clipboard Sync", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    Text("📁 Fast WiFi File Beam & Drop", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                    Text("👆 Presentation Laser Pointer", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = TextDark)
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showRequestToolDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandBlack)
+                ) {
+                    Text("Got It", color = Color.White)
+                }
+            },
+            containerColor = WhiteSurface
+        )
+    }
+}
+
+@Composable
+private fun PeripheralTile(
+    title: String,
+    iconResId: Int,
+    isActive: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier
+            .height(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isActive) CardActive else CardGrey
+        ),
+        border = if (isActive) BorderStroke(2.dp, BorderActive) else null,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Header with Icon and Toggle Switch
+            // Status Badge at top right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (isActive) AccentIndigo.copy(alpha = 0.2f) else Color(0xFF1D202D)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = iconRes),
-                        contentDescription = title,
-                        tint = if (isActive) AccentIndigo else TextSecondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Switch(
-                    checked = isActive,
-                    onCheckedChange = { onToggle() },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = AccentIndigo,
-                        uncheckedThumbColor = TextSecondary,
-                        uncheckedTrackColor = Color(0xFF1C1F2C),
-                        uncheckedBorderColor = Color.Transparent
-                    ),
-                    modifier = Modifier.scale(0.85f)
-                )
-            }
-
-            // Text section
-            Column {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    text = title.lowercase() + "...",
+                    fontSize = 11.sp,
+                    color = if (isActive) TextDark else TextMuted
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (isActive) AccentCyan else TextSecondary
-                )
-            }
 
-            // Quick Controller indicator if separate screen exists
-            if (onOpenScreen != null && isActive) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.clickable { onOpenScreen() }
+                Surface(
+                    shape = RoundedCornerShape(50.dp),
+                    color = if (isActive) BorderActive else CardGreyLight,
+                    modifier = Modifier.padding(2.dp)
                 ) {
                     Text(
-                        text = "Open Controller",
-                        fontSize = 11.sp,
-                        color = AccentIndigo,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "Open",
-                        tint = AccentIndigo,
-                        modifier = Modifier.size(12.dp)
+                        text = if (isActive) "ON" else "OFF",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isActive) Color.White else TextMuted,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
-            } else {
-                Spacer(modifier = Modifier.height(12.dp))
             }
+
+            // Center Peripheral Icon
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = title,
+                tint = if (isActive) BorderActive else TextDark,
+                modifier = Modifier.size(52.dp)
+            )
+
+            // Title
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = TextDark
+            )
         }
     }
 }
-
-private fun Modifier.scale(scale: Float): Modifier = this.then(
-    Modifier.size((52 * scale).dp, (32 * scale).dp)
-)

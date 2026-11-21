@@ -1,5 +1,4 @@
 use clap::Parser;
-use qrcode::render::unicode;
 use qrcode::QrCode;
 use rand::Rng;
 use serde_json::json;
@@ -98,13 +97,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .to_string();
 
             print_banner(&local_ip, port, &token);
+            print_ansi_qr(&payload);
 
-            if let Ok(code) = QrCode::new(payload.as_bytes()) {
-                let qr_render = code.render::<unicode::Dense1x2>().build();
-                println!("{}", qr_render);
-            }
-
-            println!("  \x1b[32m✔ Scan this QR code with the Plugless Android App to connect instantly!\x1b[0m");
+            println!("  \x1b[1;32m✔ Scan this QR code with the Plugless Android App to connect instantly!\x1b[0m");
+            println!("  \x1b[36m⚡ Or connect manually in app: IP \x1b[1;37m{}\x1b[0m \x1b[36mPort \x1b[1;37m{}\x1b[0m \x1b[36mToken \x1b[1;37m{}\x1b[0m", local_ip, port, token);
             println!("  \x1b[90m(Press Ctrl+C to stop)\x1b[0m\n");
 
             let server = Arc::new(PluglessServer::new(port, audio_port, Some(token)));
@@ -151,6 +147,55 @@ fn print_banner(ip: &str, port: u16, token: &str) {
     println!("  Host IP:         \x1b[1mhttp://{}:{}\x1b[0m", ip, port);
     println!("  Pairing Token:   \x1b[33m{}\x1b[0m", token);
     println!("  ─────────────────────────────────────────────────────────────\n");
+}
+
+fn print_ansi_qr(payload: &str) {
+    if let Ok(code) = QrCode::new(payload.as_bytes()) {
+        let width = code.width();
+        let border = 2;
+        let full_width = width + border * 2;
+
+        println!();
+        // Top quiet zone (white)
+        for _ in 0..border {
+            print!("  ");
+            for _ in 0..full_width {
+                print!("\x1b[47m  \x1b[0m");
+            }
+            println!();
+        }
+
+        // Data rows
+        for y in 0..width {
+            print!("  ");
+            // Left quiet zone (white)
+            for _ in 0..border {
+                print!("\x1b[47m  \x1b[0m");
+            }
+            for x in 0..width {
+                if code[(x, y)] == qrcode::Color::Dark {
+                    print!("\x1b[40m  \x1b[0m");
+                } else {
+                    print!("\x1b[47m  \x1b[0m");
+                }
+            }
+            // Right quiet zone (white)
+            for _ in 0..border {
+                print!("\x1b[47m  \x1b[0m");
+            }
+            println!();
+        }
+
+        // Bottom quiet zone (white)
+        for _ in 0..border {
+            print!("  ");
+            for _ in 0..full_width {
+                print!("\x1b[47m  \x1b[0m");
+            }
+            println!();
+        }
+        println!();
+    }
 }
 
 fn chrono_like(ts: u64) -> String {

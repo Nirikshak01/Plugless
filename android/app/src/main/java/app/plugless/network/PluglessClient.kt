@@ -16,7 +16,7 @@ class PluglessClient(
     private val audioPort: Int = 8766,
     private val token: String,
     private val onConnectionStateChanged: (ConnectionState) -> Unit,
-    private val onStateSync: (mouse: Boolean, kb: Boolean, mic: Boolean, spk: Boolean) -> Unit,
+    private val onStateSync: (mouse: Boolean, kb: Boolean, mic: Boolean, spk: Boolean, cam: Boolean) -> Unit,
     private val onLatencyUpdated: (Long) -> Unit
 ) {
     private val tag = "PluglessClient"
@@ -70,7 +70,8 @@ class PluglessClient(
                             val k = root.get("keyboard")?.asBoolean ?: true
                             val mic = root.get("mic")?.asBoolean ?: false
                             val spk = root.get("speaker")?.asBoolean ?: false
-                            onStateSync(m, k, mic, spk)
+                            val cam = root.get("camera")?.asBoolean ?: false
+                            onStateSync(m, k, mic, spk, cam)
                         }
                         "pong" -> {
                             val clientTs = root.get("client_ts")?.asLong ?: 0L
@@ -167,6 +168,14 @@ class PluglessClient(
             addProperty("type", "special_key")
             addProperty("key", key)
             addProperty("state", state.lowercase())
+        }
+        webSocket?.send(gson.toJson(obj))
+    }
+
+    fun sendCameraFrame(base64Data: String) {
+        val obj = JsonObject().apply {
+            addProperty("type", "camera_frame")
+            addProperty("data", base64Data)
         }
         webSocket?.send(gson.toJson(obj))
     }
