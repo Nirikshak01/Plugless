@@ -1,0 +1,12 @@
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="background_dark">#FF0B0C10</color>
+    <color name="surface_dark">#FF14161E</color>
+    <color name="surface_card_dark">#FF1C1F2B</color>
+    <color name="primary_accent">#FF6366F1</color>
+    <color name="primary_accent_glow">#4D6366F1</color>
+    <color name="success_green">#FF10B981</color>
+    <color name="warning_amber">#FFF59E0B</color>
+    <color name="danger_red">#FFEF4444</color>
+</resources>

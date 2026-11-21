@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Plugless</string>
+    <string name="app_tagline">Turn your phone into zero-wire PC peripherals</string>
+    <string name="tile_mouse">Mouse</string>
+    <string name="tile_keyboard">Keyboard</string>
+    <string name="tile_mic">Microphone</string>
+    <string name="tile_speaker">Speaker</string>
+    <string name="preset_meeting">Meeting</string>
+    <string name="preset_remote">Remote</string>
+    <string name="preset_all">All On</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="action_scan">Scan PC</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_settings">Settings</string>
+</resources>

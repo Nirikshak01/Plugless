@@ -1,0 +1,94 @@
+name: CI and Release Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-rust:
+    name: Build Linux Executable
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve Source
+        uses: actions/checkout@v4
+
+      - name: Configure Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Compile Release Binary
+        run: |
+          cd backend
+          cargo build --release --target x86_64-unknown-linux-gnu
+          mkdir -p ../artifacts
+          cp target/x86_64-unknown-linux-gnu/release/plugless ../artifacts/plugless-linux-x86_64
+          cd ../artifacts
+          sha256sum plugless-linux-x86_64 > checksums.txt
+
+      - name: Archive Binary Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugless-linux-x86_64
+          path: artifacts/
+
+  build-apk:
+    name: Assemble Android Package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve Source
+        uses: actions/checkout@v4
+
+      - name: Initialize JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Initialize Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Compile APK
+        run: |
+          cd android
+          gradle assembleRelease --stacktrace --no-daemon || gradle assembleDebug --stacktrace --no-daemon
+          mkdir -p ../artifacts
+          find app/build/outputs/apk/ -name "*.apk" -exec cp {} ../artifacts/Plugless.apk \;
+
+      - name: Archive APK Asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: Plugless-Android-APK
+          path: artifacts/Plugless.apk
+
+  publish-release:
+    name: Create GitHub Release
+    needs: [build-rust, build-apk]
+    if: startsWith(github.ref, "refs/tags/v")
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Rust Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: plugless-linux-x86_64
+          path: release_files
+
+      - name: Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Plugless-Android-APK
+          path: release_files
+
+      - name: Publish GitHub Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release_files/*
+          generate_release_notes: true

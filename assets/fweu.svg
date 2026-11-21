@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <!-- Main Interlocking Strokes -->
+  <g fill="none" stroke="currentColor" stroke-width="7.2" stroke-linecap="butt" stroke-linejoin="round">
+    <!-- Top-left horizontal to center-right diagonal -->
+    <path d="M 10,13.6 H 28 Q 40,13.6 48,21.6 L 72.5,46.1" />
+
+    <!-- Bottom-right horizontal to center-left diagonal -->
+    <path d="M 90,86.4 H 72 Q 60,86.4 52,78.4 L 27.6,54" />
+
+    <!-- Bottom-left vertical stem to upper diagonal -->
+    <path d="M 13.6,83 V 68 Q 13.6,56 21.6,48 L 42.5,27.1" />
+
+    <!-- Top-right vertical stem to lower diagonal -->
+    <path d="M 86.4,17 V 32 Q 86.4,44 78.4,52 L 57.5,72.9" />
+
+    <!-- Center interlocking loop -->
+    <path d="M 17,54 H 34 C 52,54 58,36 47,21" />
+
+    <!-- Right-side curved tail -->
+    <path d="M 75,55 Q 86.4,61 86.4,71 L 86.4,76" />
+  </g>
+
+  <!-- Crisp Diagonal Stubs & Beveled Tips -->
+  <g fill="currentColor">
+    <!-- Top-middle stub -->
+    <path d="M 54.5,10 H 64.7 L 56.05,18.65 L 50.95,13.55 Z" />
+    <!-- Bottom-middle stub -->
+    <path d="M 45.5,90 H 35.3 L 43.95,81.35 L 49.05,86.45 Z" />
+    <!-- Bottom-left bevel -->
+    <path d="M 10,82.8 H 17.2 L 10,90 Z" />
+    <!-- Top-right bevel -->
+    <path d="M 90,17.2 H 82.8 L 90,10 Z" />
+  </g>
+</svg>

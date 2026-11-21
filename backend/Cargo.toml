@@ -1,0 +1,32 @@
+[package]
+name = "plugless"
+version = "1.0.0"
+edition = "2021"
+authors = ["Nirikshak <thakorjasmin503@gmail.com>"]
+description = "Turn your phone into zero-wire PC peripherals (mouse, keyboard, microphone, speaker)"
+license = "MIT"
+readme = "../README.md"
+repository = "https://github.com/Nirikshak01/Plugless"
+
+[dependencies]
+tokio = { version = "1.40", features = ["full"] }
+tokio-tungstenite = "0.24"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+qrcode = { version = "0.14", default-features = false }
+local-ip-address = "0.6"
+rand = "0.8"
+libc = "0.2"
+dirs = "5.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+socket2 = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
