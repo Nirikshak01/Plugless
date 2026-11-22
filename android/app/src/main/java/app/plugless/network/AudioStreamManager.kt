@@ -24,6 +24,7 @@ class AudioStreamManager(
 
     private var micJob: Job? = null
     private var speakerJob: Job? = null
+    private var heartbeatJob: Job? = null
     private var udpSocket: DatagramSocket? = null
 
     private var audioRecord: AudioRecord? = null
@@ -45,9 +46,37 @@ class AudioStreamManager(
         return udpSocket!!
     }
 
+    private fun startUdpHeartbeat() {
+        if (heartbeatJob != null && heartbeatJob!!.isActive) return
+        heartbeatJob = scope.launch {
+            val targetAddr = InetAddress.getByName(hostIp)
+            val pingBuffer = ByteArray(8)
+            val header = ByteBuffer.wrap(pingBuffer).order(ByteOrder.BIG_ENDIAN)
+            header.put(0, 0x03.toByte()) // 0x03 = AUDIO_PACKET_PING
+            header.put(1, 0.toByte())
+
+            while (isActive) {
+                try {
+                    val sock = getSocket()
+                    if (!sock.isClosed) {
+                        val nowMs = (System.currentTimeMillis() and 0xFFFFFFFFL).toInt()
+                        header.putInt(4, nowMs)
+                        val pingPacket = DatagramPacket(pingBuffer, pingBuffer.size, targetAddr, audioPort)
+                        sock.send(pingPacket)
+                    }
+                } catch (e: Exception) {
+                    Log.w(tag, "UDP Heartbeat error: ${e.message}")
+                }
+                delay(1200)
+            }
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun startMicrophone() {
         if (micJob != null && micJob!!.isActive) return
+
+        startUdpHeartbeat()
 
         micJob = scope.launch {
             Log.d(tag, "Starting Phone Microphone stream...")
@@ -136,6 +165,10 @@ class AudioStreamManager(
         micJob?.cancel()
         micJob = null
         stopMicrophoneInternal()
+        if (speakerJob == null || !speakerJob!!.isActive) {
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+        }
     }
 
     private fun stopMicrophoneInternal() {
@@ -155,6 +188,8 @@ class AudioStreamManager(
 
     fun startSpeaker() {
         if (speakerJob != null && speakerJob!!.isActive) return
+
+        startUdpHeartbeat()
 
         speakerJob = scope.launch {
             Log.d(tag, "Starting Speaker playback...")
@@ -196,12 +231,28 @@ class AudioStreamManager(
                     )
                 }
 
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    audioTrack?.setVolume(settings.speakerVolume.coerceIn(0f, 1f))
+                }
+
                 audioTrack!!.play()
                 val socket = getSocket()
+                val targetAddr = InetAddress.getByName(hostIp)
+
+                // Send immediate registration ping so PC learns our UDP endpoint at once
+                try {
+                    val pingBuffer = ByteArray(8).apply { this[0] = 0x03.toByte() }
+                    socket.send(DatagramPacket(pingBuffer, pingBuffer.size, targetAddr, audioPort))
+                } catch (e: Exception) {
+                    Log.w(tag, "Immediate speaker registration ping failed: ${e.message}")
+                }
+
                 val rxBuffer = ByteArray(4096)
                 val packet = DatagramPacket(rxBuffer, rxBuffer.size)
 
                 while (isActive) {
+                    // Critical: Reset buffer length before every receive!
+                    packet.length = rxBuffer.size
                     socket.receive(packet)
                     val len = packet.length
                     if (len > 8 && rxBuffer[0] == 0x02.toByte()) {
@@ -222,6 +273,10 @@ class AudioStreamManager(
         speakerJob?.cancel()
         speakerJob = null
         stopSpeakerInternal()
+        if (micJob == null || !micJob!!.isActive) {
+            heartbeatJob?.cancel()
+            heartbeatJob = null
+        }
     }
 
     private fun stopSpeakerInternal() {
@@ -247,6 +302,8 @@ class AudioStreamManager(
     fun release() {
         stopMicrophone()
         stopSpeaker()
+        heartbeatJob?.cancel()
+        heartbeatJob = null
         udpSocket?.close()
         udpSocket = null
     }

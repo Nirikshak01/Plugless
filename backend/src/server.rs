@@ -155,7 +155,10 @@ impl PluglessServer {
                             continue;
                         }
                         let mut state = state_udp.lock().await;
-                        state.client_udp_addr = Some(src_addr);
+                        if state.client_udp_addr != Some(src_addr) {
+                            info!("🔊 Registered client UDP audio target: {}", src_addr);
+                            state.client_udp_addr = Some(src_addr);
+                        }
 
                         let packet_type = buf[0];
                         match packet_type {
@@ -279,6 +282,9 @@ impl PluglessServer {
                                 device_name,
                                 token.clone(),
                             );
+                            if st.client_udp_addr.is_none() {
+                                st.client_udp_addr = Some(SocketAddr::new(peer_addr.ip(), audio_port));
+                            }
 
                             let resp = ServerMessage::AuthResponse {
                                 success: true,
